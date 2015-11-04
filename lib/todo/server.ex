@@ -1,30 +1,32 @@
 defmodule Todo.Server do
-  def start do
-    state = Todo.List.new
-    server = spawn(fn -> loop(state) end)
-    Process.register server, :server
+  use GenServer
+
+  # Interface API
+  def start(name) do
+    {:ok, server_pid} = GenServer.start(__MODULE__, name)
+    server_pid
   end
 
-  def add_entry(entry) do
-    send :server, {:add_entry, entry}
+  def add_entry(server_pid, entry) do
+    GenServer.cast(server_pid, {:add_entry, entry})
   end
 
-  def entries(date) do
-    send :server, {:entries, self, date}
-    receive do
-      {:entries, entries} -> entries
-    end
+  def entries(server_pid, date) do
+    GenServer.call(server_pid, {:entries, date})
   end
 
-  def loop(state) do
-    new_state = receive do
-      {:add_entry, entry} ->
-        Todo.List.add_entry(state, entry)
-      {:entries, caller, date} ->
-        entries = Todo.List.entries(state, date)
-        send caller, {:entries, entries}
-        state
-    end
-    loop(new_state)
+  # GenServer code
+  def init(name) do
+    {:ok, {name, Todo.Database.get(name) || Todo.List.new}}
+  end
+
+  def handle_cast({:add_entry, entry}, {name, todo_list}) do
+    new_state = Todo.List.add_entry(todo_list, entry)
+    Todo.Database.store(name, new_state)
+    {:noreply, {name, new_state}}
+  end
+
+  def handle_call({:entries, date}, _caller, {name, todo_list}) do
+    {:reply, Todo.List.entries(todo_list, date), {name, todo_list}}
   end
 end

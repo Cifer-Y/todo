@@ -24,7 +24,7 @@ defmodule Todo.List do
   def entries(%__MODULE__{entries: entries}, date) do
     entries
     |> Enum.filter(fn({_, entry}) -> entry.date == date end)
-    |> Enum.map(fn({_, entry}) -> entry.title end)
+    |> Enum.map(fn({_, entry}) -> entry end)
   end
 
   def update_entry(%__MODULE__{entries: entries} = todo_list, entry_id, update_fn) do
